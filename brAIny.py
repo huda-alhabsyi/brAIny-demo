@@ -234,6 +234,20 @@ if st.session_state.subject:
     with st.container():
         st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
         
+        # Display chat history (skip system message)
+    for m in st.session_state.history[1:]:
+        with st.chat_message("user" if m["role"] == "user" else "assistant", avatar="🧑‍🎓" if m["role"] == "user" else "🧠"):
+            # Handle text content
+            if isinstance(m.get("content"), str):
+                st.markdown(m["content"])
+            # Handle content with images (list format)
+            elif isinstance(m.get("content"), list):
+                for item in m["content"]:
+                    if item.get("type") == "input_text":
+                        st.markdown(item.get("text", ""))
+                    elif item.get("type") == "input_image":
+                        st.caption("📸 Image uploaded")
+    
     # Image upload section (only show if using gpt-4o)
     if st.session_state.model == "gpt-4o":
         uploaded_file = st.file_uploader(
@@ -307,21 +321,6 @@ if st.session_state.subject:
                 # Append assistant response
                 st.session_state.history.append({"role": "assistant", "content": ai_text})
                 st.rerun()
-                
-    # Display chat history (skip system message)
-    for m in st.session_state.history[1:]:
-        with st.chat_message("user" if m["role"] == "user" else "assistant", avatar="🧑‍🎓" if m["role"] == "user" else "🧠"):
-            # Handle text content
-            if isinstance(m.get("content"), str):
-                st.markdown(m["content"])
-            # Handle content with images (list format)
-            elif isinstance(m.get("content"), list):
-                for item in m["content"]:
-                    if item.get("type") == "input_text":
-                        st.markdown(item.get("text", ""))
-                    elif item.get("type") == "input_image":
-                        st.caption("📸 Image uploaded")
-
     
     # Chat input (for text-only messages)
     user_msg = st.chat_input("💭 Type your question here...")
