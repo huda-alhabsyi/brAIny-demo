@@ -38,21 +38,24 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Custom chat messages */
+    /* Custom chat messages styling */
     .stChatMessage {
-        border-radius: 1rem;
-        padding: 1rem;
-        margin: 0.5rem 0;
+        border-radius: 1rem !important;
+        padding: 1rem !important;
+        margin: 0.5rem 0 !important;
     }
     
-    /* Image upload area styling */
-    .upload-hint {
-        background: linear-gradient(135deg, #E0E7FF 0%, #F3E8FF 100%);
-        padding: 1rem;
-        border-radius: 1rem;
-        border: 2px dashed #C084FC;
-        text-align: center;
-        margin: 1rem 0;
+    /* Force dark text color for ALL chat messages */
+    .stChatMessage p,
+    .stChatMessage div,
+    .stChatMessage span {
+        color: #111827 !important;
+        font-weight: 500 !important;
+    }
+    
+    /* User messages specifically */
+    [data-testid="stChatMessageContent"] p {
+        color: #111827 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -120,7 +123,7 @@ with st.sidebar:
     # Model selection
     model_option = st.selectbox(
         "AI Model", 
-        ["gpt-4o (use this for images!)", "gpt-4o-mini (text only)"], 
+        ["gpt-4o-mini (text only)", "gpt-4o (use this for images!)"], 
         index=0
     )
     st.session_state.model = model_option.split()[0]  # Extract just "gpt-4o-mini" or "gpt-4o"
@@ -230,14 +233,24 @@ if not st.session_state.subject:
 
 # ---- Chat Interface (only show if subject is selected) ----
 if st.session_state.subject:
-    # ---- Use Streamlit container for better control ----
-    with st.container():
-        st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-        
+    # Display chat history (skip system message)
+    for m in st.session_state.history[1:]:
+        with st.chat_message("user" if m["role"] == "user" else "assistant", avatar="🧑‍🎓" if m["role"] == "user" else "🧠"):
+            # Handle text content
+            if isinstance(m.get("content"), str):
+                st.markdown(m["content"])
+            # Handle content with images (list format)
+            elif isinstance(m.get("content"), list):
+                for item in m["content"]:
+                    if item.get("type") == "input_text":
+                        st.markdown(item.get("text", ""))
+                    elif item.get("type") == "input_image":
+                        st.caption("📸 Image uploaded")
+    
     # Image upload section (only show if using gpt-4o)
     if st.session_state.model == "gpt-4o":
         uploaded_file = st.file_uploader(
-            "Upload an image of your homework problem",
+            "📸 Upload an image of your homework problem",
             type=["png", "jpg", "jpeg"],
             help="Take a clear photo of your math or science problem"
         )
@@ -307,22 +320,6 @@ if st.session_state.subject:
                 # Append assistant response
                 st.session_state.history.append({"role": "assistant", "content": ai_text})
                 st.rerun()
-        
-        # Display chat history (skip system message)
-    for m in st.session_state.history[1:]:
-        with st.chat_message("user" if m["role"] == "user" else "assistant", avatar="🧑‍🎓" if m["role"] == "user" else "🧠"):
-            # Handle text content
-            if isinstance(m.get("content"), str):
-                st.markdown(m["content"])
-            # Handle content with images (list format)
-            elif isinstance(m.get("content"), list):
-                for item in m["content"]:
-                    if item.get("type") == "input_text":
-                        st.markdown(item.get("text", ""))
-                    elif item.get("type") == "input_image":
-                        st.caption("📸 Image uploaded")
-    
-    
     
     # Chat input (for text-only messages)
     user_msg = st.chat_input("💭 Type your question here...")
@@ -345,7 +342,6 @@ if st.session_state.subject:
         with st.chat_message("assistant", avatar="🧠"):
             with st.spinner("🤔 Thinking..."):
                 try:
-                    # Use Responses API
                     resp = client.responses.create(
                         model=st.session_state.model,
                         input=st.session_state.history
